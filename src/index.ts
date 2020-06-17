@@ -58,6 +58,11 @@ const typeDefs = gql`
     LESS_OR_EQUAL
   }
 
+  enum SortDirection {
+    ASC
+    DESC
+  }
+
   scalar FilterValue
 
   input OrderFilter {
@@ -66,11 +71,16 @@ const typeDefs = gql`
     value: FilterValue
   }
 
+  input OrderSort {
+    field: OrderField
+    direction: SortDirection
+  }
+
   type Query {
     order(hash: Hash!): Order
     orders(
+      sort: [OrderSort!] = [{ field: hash, direction: ASC }]
       filters: [OrderFilter!] = []
-      afterHash: Hash = "0x0000000000000000000000000000000000000000000000000000000000000000"
       limit: Int = 20
     ): [Order!]!
   }
@@ -102,7 +112,7 @@ interface OrderArgs {
   hash: String;
 }
 
-type OrderField = Extract<keyof Order, string>;
+type OrderField = keyof Order;
 
 enum FilterKind {
   Equal = "EQUAL",
@@ -119,10 +129,20 @@ interface OrderFilter {
   value: number | string;
 }
 
+enum SortDirection {
+  Asc = "ASC",
+  Desc = "DESC",
+}
+
+interface OrderSort {
+  field: OrderField;
+  direction: SortDirection;
+}
+
 interface OrdersArgs {
+  sort: OrderSort[];
   filters: OrderFilter[];
   limit: number;
-  afterHash: string;
 }
 
 const resolvers = {
@@ -155,9 +175,19 @@ function ordersResolver(_: any, args: OrdersArgs): Order[] {
         throw new Error(`unexpected filter kind: ${filter.kind}`);
     }
   });
+  const sorters = args.sort.map((sort: OrderSort) => {
+    switch (sort.direction) {
+      case SortDirection.Asc:
+        return R.ascend((order: Order) => order[sort.field]);
+      case SortDirection.Desc:
+        return R.descend((order: Order) => order[sort.field]);
+      default:
+        throw new Error(`unexpected sort direction: ${sort.direction}`);
+    }
+  });
   return R.pipe<Order[], Order[], Order[], Order[]>(
-    R.filter((order: Order) => order.hash > args.afterHash),
     R.filter(R.allPass(filters)),
+    R.sortWith(sorters),
     R.take(args.limit)
   )(mockOrders);
 }
@@ -165,6 +195,7 @@ function ordersResolver(_: any, args: OrdersArgs): Order[] {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  cacheControl: false,
 });
 
 server.listen().then((result: { url: string }) => {
