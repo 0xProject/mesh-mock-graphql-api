@@ -28,10 +28,49 @@ const typeDefs = gql`
     remainingFillableTakerAssetAmount: BigNumber!
   }
 
+  enum OrderField {
+    hash
+    chainId
+    exchangeAddress
+    makerAddress
+    makerAssetData
+    makerAssetAmount
+    makerFeeAssetData
+    makerFee
+    takerAddress
+    takerAssetData
+    takerAssetAmount
+    takerFeeAssetData
+    takerFee
+    senderAddress
+    feeRecipientAddress
+    expirationTimeSeconds
+    salt
+    remainingFillableTakerAssetAmount
+  }
+
+  enum FilterKind {
+    EQUAL
+    NOT_EQUAL
+    GREATER
+    GREATER_OR_EQUAL
+    LESS
+    LESS_OR_EQUAL
+  }
+
+  scalar FilterValue
+
+  input OrderFilter {
+    field: OrderField
+    kind: FilterKind
+    value: FilterValue
+  }
+
   type Query {
     order(hash: Hash!): Order
     orders(
-      after: Hash = "0x0000000000000000000000000000000000000000000000000000000000000000"
+      filters: [OrderFilter!] = []
+      afterHash: Hash = "0x0000000000000000000000000000000000000000000000000000000000000000"
       limit: Int = 20
     ): [Order!]!
   }
@@ -63,9 +102,27 @@ interface OrderArgs {
   hash: String;
 }
 
+type OrderField = Extract<keyof Order, string>;
+
+enum FilterKind {
+  Equal = "EQUAL",
+  NotEqual = "NOT_EQUAL",
+  Greater = "GREATER",
+  GreaterOrEqual = "GREATER_OR_EQUAL",
+  Less = "LESS",
+  LessOrEqual = "LESS_OR_EQUAL",
+}
+
+interface OrderFilter {
+  field: OrderField;
+  kind: FilterKind;
+  value: number | string;
+}
+
 interface OrdersArgs {
+  filters: OrderFilter[];
   limit: number;
-  after: string;
+  afterHash: string;
 }
 
 const resolvers = {
@@ -80,8 +137,27 @@ function orderResolver(_: any, args: OrderArgs): Order | undefined {
 }
 
 function ordersResolver(_: any, args: OrdersArgs): Order[] {
-  return R.pipe<Order[], Order[], Order[]>(
-    R.filter((order: Order) => order.hash > args.after),
+  const filters = args.filters.map((filter: OrderFilter) => {
+    switch (filter.kind) {
+      case FilterKind.Equal:
+        return (order: Order) => order[filter.field] === filter.value;
+      case FilterKind.NotEqual:
+        return (order: Order) => order[filter.field] !== filter.value;
+      case FilterKind.Greater:
+        return (order: Order) => order[filter.field] > filter.value;
+      case FilterKind.GreaterOrEqual:
+        return (order: Order) => order[filter.field] >= filter.value;
+      case FilterKind.Less:
+        return (order: Order) => order[filter.field] < filter.value;
+      case FilterKind.LessOrEqual:
+        return (order: Order) => order[filter.field] <= filter.value;
+      default:
+        throw new Error(`unexpected filter kind: ${filter.kind}`);
+    }
+  });
+  return R.pipe<Order[], Order[], Order[], Order[]>(
+    R.filter((order: Order) => order.hash > args.afterHash),
+    R.filter(R.allPass(filters)),
     R.take(args.limit)
   )(mockOrders);
 }
