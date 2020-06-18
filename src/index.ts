@@ -48,6 +48,29 @@ const typeDefs = gql`
   }
 
   """
+  Used for submiting a new order to Mesh.
+  """
+  input NewOrder {
+    chainId: Int!
+    exchangeAddress: Address!
+    makerAddress: Address!
+    makerAssetData: Bytes!
+    makerAssetAmount: BigNumber!
+    makerFeeAssetData: Bytes!
+    makerFee: BigNumber!
+    takerAddress: Address!
+    takerAssetData: Bytes!
+    takerAssetAmount: BigNumber!
+    takerFeeAssetData: Bytes!
+    takerFee: BigNumber!
+    senderAddress: Address!
+    feeRecipientAddress: Address!
+    expirationTimeSeconds: BigNumber!
+    salt: BigNumber!
+    signature: Bytes!
+  }
+
+  """
   An enum containing all the order fields for which filters and/or sorting is supported.
   """
   enum OrderField {
@@ -138,6 +161,10 @@ const typeDefs = gql`
       limit: Int = 20
     ): [Order!]!
   }
+
+  type Mutation {
+    addOrders(orders: [NewOrder!]!, pinned: Boolean = true): [Order!]!
+  }
 `;
 
 interface Order {
@@ -199,10 +226,37 @@ interface OrdersArgs {
   limit: number;
 }
 
+interface AddOrdersArgs {
+  orders: NewOrder[];
+}
+
+interface NewOrder {
+  chainId: number;
+  exchangeAddress: string;
+  makerAddress: string;
+  makerAssetData: string;
+  makerAssetAmount: string;
+  makerFeeAssetData: string;
+  makerFee: string;
+  takerAddress: string;
+  takerAssetData: string;
+  takerAssetAmount: string;
+  takerFeeAssetData: string;
+  takerFee: string;
+  senderAddress: string;
+  feeRecipientAddress: string;
+  expirationTimeSeconds: string;
+  salt: string;
+  signature: string;
+}
+
 const resolvers = {
   Query: {
     order: orderResolver,
     orders: ordersResolver,
+  },
+  Mutation: {
+    addOrders: addOrdersResolver,
   },
 };
 
@@ -244,6 +298,14 @@ function ordersResolver(_: any, args: OrdersArgs): Order[] {
     R.sortWith(sorters),
     R.take(args.limit)
   )(mockOrders);
+}
+
+function addOrdersResolver(_: any, args: AddOrdersArgs): Order[] {
+  return args.orders.map((order) => ({
+    ...order,
+    hash: "0x06d15403630b6d83fbacbf0864eb76c2db3d6e6fc8adec8a95fc536593f17c53",
+    remainingFillableTakerAssetAmount: "150000",
+  }));
 }
 
 const server = new ApolloServer({
