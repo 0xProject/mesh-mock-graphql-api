@@ -253,7 +253,7 @@ const server = new ApolloServer({
 });
 
 server.listen().then((result: { url: string }) => {
-  console.log(`🚀 Server ready at ${result.url}`);
+  console.log(`👺 Server ready at ${result.url}`);
 });
 
 // mockOrders is a collection of real orders from SRA. Sorted by order hash.
