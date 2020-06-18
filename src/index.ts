@@ -18,12 +18,12 @@ const typeDefs = gql`
   An array of arbitrary bytes encoded as a hexadecimal string.
   """
   scalar Bytes
+
   """
-  A signed 0x order according to the protocol specification at https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.
-  Includes some additional metadata like remainingFillableTakerAssetAmount.
+  A signed 0x order according to the protocol specification at
+  https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.
   """
   type Order {
-    hash: Hash!
     chainId: Int!
     exchangeAddress: Address!
     makerAddress: Address!
@@ -41,33 +41,37 @@ const typeDefs = gql`
     expirationTimeSeconds: BigNumber!
     salt: BigNumber!
     signature: Bytes!
+  }
+
+  """
+  A signed 0x order along with some additional metaddata about an order which is not part of the 0x protocol specification.
+  """
+  type OrderWithMetadata {
+    chainId: Int!
+    exchangeAddress: Address!
+    makerAddress: Address!
+    makerAssetData: Bytes!
+    makerAssetAmount: BigNumber!
+    makerFeeAssetData: Bytes!
+    makerFee: BigNumber!
+    takerAddress: Address!
+    takerAssetData: Bytes!
+    takerAssetAmount: BigNumber!
+    takerFeeAssetData: Bytes!
+    takerFee: BigNumber!
+    senderAddress: Address!
+    feeRecipientAddress: Address!
+    expirationTimeSeconds: BigNumber!
+    salt: BigNumber!
+    signature: Bytes!
+    """
+    The hash, which can be used to uniquely identify an order.
+    """
+    hash: Hash!
     """
     The remaining amount of the maker asset which has not yet been filled.
     """
     remainingFillableTakerAssetAmount: BigNumber!
-  }
-
-  """
-  Used for submiting a new order to Mesh.
-  """
-  input NewOrder {
-    chainId: Int!
-    exchangeAddress: Address!
-    makerAddress: Address!
-    makerAssetData: Bytes!
-    makerAssetAmount: BigNumber!
-    makerFeeAssetData: Bytes!
-    makerFee: BigNumber!
-    takerAddress: Address!
-    takerAssetData: Bytes!
-    takerAssetAmount: BigNumber!
-    takerFeeAssetData: Bytes!
-    takerFee: BigNumber!
-    senderAddress: Address!
-    feeRecipientAddress: Address!
-    expirationTimeSeconds: BigNumber!
-    salt: BigNumber!
-    signature: Bytes!
   }
 
   """
@@ -140,7 +144,7 @@ const typeDefs = gql`
     """
     Returns the order with the specified hash, or null if no order is found with that hash.
     """
-    order(hash: Hash!): Order
+    order(hash: Hash!): OrderWithMetadata
     """
     Returns an array of orders that satisfy certain criteria.
     """
@@ -159,11 +163,89 @@ const typeDefs = gql`
       The maximum number of orders to be included in the results. Defaults to 20.
       """
       limit: Int = 20
-    ): [Order!]!
+    ): [OrderWithMetadata!]!
+  }
+
+  """
+  A signed 0x order according to the protocol specification at https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.
+  """
+  input NewOrder {
+    chainId: Int!
+    exchangeAddress: Address!
+    makerAddress: Address!
+    makerAssetData: Bytes!
+    makerAssetAmount: BigNumber!
+    makerFeeAssetData: Bytes!
+    makerFee: BigNumber!
+    takerAddress: Address!
+    takerAssetData: Bytes!
+    takerAssetAmount: BigNumber!
+    takerFeeAssetData: Bytes!
+    takerFee: BigNumber!
+    senderAddress: Address!
+    feeRecipientAddress: Address!
+    expirationTimeSeconds: BigNumber!
+    salt: BigNumber!
+    signature: Bytes!
+  }
+
+  """
+  The results of the addOrders mutation. Includes which orders were accepted and which orders where rejected.
+  """
+  type AddOrdersResults {
+    accepted: [AcceptedOrderResult!]!
+    rejected: [RejectedOrderResult!]!
+  }
+
+  type AcceptedOrderResult {
+    """
+    The order that was accepted, including metadata.
+    """
+    order: OrderWithMetadata!
+    """
+    Whether or not the order is new. Set to true if this is the first time this Mesh node has accepted the order
+    and false otherwise.
+    """
+    isNew: Boolean!
+  }
+
+  type RejectedOrderResult {
+    """
+    The hash of the order. May be null if the hash could not be computed.
+    """
+    hash: Hash!
+    """
+    The order that was rejected.
+    """
+    order: Order!
+    """
+    A machine-readable code indicating why the order was rejected. This code is designed to
+    be used by programs and applications and will never change without breaking backwards-compatibility.
+    """
+    code: RejectedOrderCode!
+    """
+    A human-readable message indicating why the order was rejected. This message may change
+    in future releases and is not covered by backwards-compatibility guarantees.
+    """
+    message: String!
+  }
+
+  """
+  A set of all possible codes included in RejectedOrderResult. Note that more codes will be added
+  to the final spec. See https://godoc.org/github.com/0xProject/0x-mesh/zeroex/ordervalidator#pkg-variables
+  for a list of all codes currently in use.
+  """
+  enum RejectedOrderCode {
+    ETH_RPC_REQUEST_FAILED
+    INVALID_MAKER_ASSET_AMOUNT
+    INVALID_TAKER_ASSET_AMOUNT
   }
 
   type Mutation {
-    addOrders(orders: [NewOrder!]!, pinned: Boolean = true): [Order!]!
+    """
+    Used to add one or more new orders to Mesh.
+    """
+    addOrders(orders: [NewOrder!]!, pinned: Boolean = true): AddOrdersResults!
   }
 `;
 
@@ -185,6 +267,9 @@ interface Order {
   expirationTimeSeconds: string;
   salt: string;
   signature: string;
+}
+
+interface OrderWithMetadata extends Order {
   hash: string;
   remainingFillableTakerAssetAmount: string;
 }
@@ -193,7 +278,7 @@ interface OrderArgs {
   hash: String;
 }
 
-type OrderField = keyof Order;
+type OrderField = keyof OrderWithMetadata;
 
 enum FilterKind {
   Equal = "EQUAL",
@@ -250,6 +335,30 @@ interface NewOrder {
   signature: string;
 }
 
+interface AddOrdersResults {
+  accepted: AcceptedOrderResult[];
+  rejected: RejectedOrderResult[];
+}
+
+interface AcceptedOrderResult {
+  order: OrderWithMetadata;
+  isNew: boolean;
+}
+
+interface RejectedOrderResult {
+  orderHash?: string;
+  order: Order;
+  code: RejectedOrderCode;
+  message: string;
+}
+
+enum RejectedOrderCode {
+  EthRPCRequestFailed = "ETH_RPC_REQUEST_FAILED",
+  InvalidMakerAssetAmount = "INVALID_MAKER_ASSET_AMOUNT",
+  InvalidTakerAssetAmount = "INVALID_TAKER_ASSET_AMOUNT",
+  // Note(albrow): Not all codes are listed here.
+}
+
 const resolvers = {
   Query: {
     order: orderResolver,
@@ -260,25 +369,29 @@ const resolvers = {
   },
 };
 
-function orderResolver(_: any, args: OrderArgs): Order | undefined {
+function orderResolver(_: any, args: OrderArgs): OrderWithMetadata | undefined {
   return R.find(R.propEq("hash", args.hash), mockOrders);
 }
 
-function ordersResolver(_: any, args: OrdersArgs): Order[] {
+function ordersResolver(_: any, args: OrdersArgs): OrderWithMetadata[] {
   const filters = args.filters.map((filter: OrderFilter) => {
     switch (filter.kind) {
       case FilterKind.Equal:
-        return (order: Order) => order[filter.field] === filter.value;
+        return (order: OrderWithMetadata) =>
+          order[filter.field] === filter.value;
       case FilterKind.NotEqual:
-        return (order: Order) => order[filter.field] !== filter.value;
+        return (order: OrderWithMetadata) =>
+          order[filter.field] !== filter.value;
       case FilterKind.Greater:
-        return (order: Order) => order[filter.field] > filter.value;
+        return (order: OrderWithMetadata) => order[filter.field] > filter.value;
       case FilterKind.GreaterOrEqual:
-        return (order: Order) => order[filter.field] >= filter.value;
+        return (order: OrderWithMetadata) =>
+          order[filter.field] >= filter.value;
       case FilterKind.Less:
-        return (order: Order) => order[filter.field] < filter.value;
+        return (order: OrderWithMetadata) => order[filter.field] < filter.value;
       case FilterKind.LessOrEqual:
-        return (order: Order) => order[filter.field] <= filter.value;
+        return (order: OrderWithMetadata) =>
+          order[filter.field] <= filter.value;
       default:
         throw new Error(`unexpected filter kind: ${filter.kind}`);
     }
@@ -286,26 +399,54 @@ function ordersResolver(_: any, args: OrdersArgs): Order[] {
   const sorters = args.sort.map((sort: OrderSort) => {
     switch (sort.direction) {
       case SortDirection.Asc:
-        return R.ascend((order: Order) => order[sort.field]);
+        return R.ascend((order: OrderWithMetadata) => order[sort.field]);
       case SortDirection.Desc:
-        return R.descend((order: Order) => order[sort.field]);
+        return R.descend((order: OrderWithMetadata) => order[sort.field]);
       default:
         throw new Error(`unexpected sort direction: ${sort.direction}`);
     }
   });
-  return R.pipe<Order[], Order[], Order[], Order[]>(
+  return R.pipe<
+    OrderWithMetadata[],
+    OrderWithMetadata[],
+    OrderWithMetadata[],
+    OrderWithMetadata[]
+  >(
     R.filter(R.allPass(filters)),
     R.sortWith(sorters),
     R.take(args.limit)
   )(mockOrders);
 }
 
-function addOrdersResolver(_: any, args: AddOrdersArgs): Order[] {
-  return args.orders.map((order) => ({
-    ...order,
-    hash: "0x06d15403630b6d83fbacbf0864eb76c2db3d6e6fc8adec8a95fc536593f17c53",
-    remainingFillableTakerAssetAmount: "150000",
-  }));
+function addOrdersResolver(_: any, args: AddOrdersArgs): AddOrdersResults {
+  // Split orders arbitrarily into accepted and rejected.
+  const [acceptedOrders, rejectedOrders] = R.splitEvery(1, args.orders);
+  const accepted: AcceptedOrderResult[] =
+    acceptedOrders == null
+      ? []
+      : acceptedOrders.map((order) => ({
+          order: {
+            ...order,
+            hash:
+              "0x06d15403630b6d83fbacbf0864eb76c2db3d6e6fc8adec8a95fc536593f17c53",
+            remainingFillableTakerAssetAmount: "150000",
+          },
+          isNew: true,
+        }));
+  const rejected: RejectedOrderResult[] =
+    rejectedOrders == null
+      ? []
+      : rejectedOrders.map((order) => ({
+          hash:
+            "0x06d15403630b6d83fbacbf0864eb76c2db3d6e6fc8adec8a95fc536593f17c53",
+          order,
+          code: RejectedOrderCode.EthRPCRequestFailed,
+          message: "network request to Ethereum RPC endpoint failed",
+        }));
+  return {
+    accepted,
+    rejected,
+  };
 }
 
 const server = new ApolloServer({
@@ -319,7 +460,7 @@ server.listen().then((result: { url: string }) => {
 });
 
 // mockOrders is a collection of real orders from SRA. Sorted by order hash.
-const mockOrders: Order[] = [
+const mockOrders: OrderWithMetadata[] = [
   {
     signature:
       "0x1c91055b1ce93cdd341c423b889be703ce436e25fe62d94aabbae97528b4d247646c3cd3a20f0566540ac5668336d147d844cf1a7715d700f1a7c3e72f1c60e21502",
