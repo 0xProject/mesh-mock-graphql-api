@@ -2,10 +2,26 @@ import { ApolloServer, gql } from "apollo-server";
 import * as R from "ramda";
 
 const typeDefs = gql`
-  scalar Hash # Encoded as hexadecimal string
-  scalar Address # Encoded as hexadecimal string
-  scalar BigNumber # Encoded as numerical string
-  scalar Bytes # Encoded as hexadecimal string
+  """
+  A 32-byte Keccak256 hash encoded as a hexidecimal string.
+  """
+  scalar Hash
+  """
+  An Ethereum address encoded as a hexadecimal string.
+  """
+  scalar Address
+  """
+  A BigNumber or uint256 value encoded as a numerical string.
+  """
+  scalar BigNumber
+  """
+  An array of arbitrary bytes encoded as a hexadecimal string.
+  """
+  scalar Bytes
+  """
+  A signed 0x order according to the protocol specification at https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.
+  Includes some additional metadata like remainingFillableTakerAssetAmount.
+  """
   type Order {
     hash: Hash!
     chainId: Int!
@@ -25,9 +41,15 @@ const typeDefs = gql`
     expirationTimeSeconds: BigNumber!
     salt: BigNumber!
     signature: Bytes!
+    """
+    The remaining amount of the maker asset which has not yet been filled.
+    """
     remainingFillableTakerAssetAmount: BigNumber!
   }
 
+  """
+  An enum containing all the order fields for which filters and/or sorting is supported.
+  """
   enum OrderField {
     hash
     chainId
@@ -49,6 +71,9 @@ const typeDefs = gql`
     remainingFillableTakerAssetAmount
   }
 
+  """
+  The kind of comparison to be used in a filter.
+  """
   enum FilterKind {
     EQUAL
     NOT_EQUAL
@@ -58,29 +83,58 @@ const typeDefs = gql`
     LESS_OR_EQUAL
   }
 
+  """
+  The direction to sort in. Ascending means lowest to highest. Descending means highest to lowest.
+  """
   enum SortDirection {
     ASC
     DESC
   }
 
+  """
+  The value to filter with. Must be the same type as the field you are filtering by.
+  """
   scalar FilterValue
 
+  """
+  A filter on orders. Can be used in queries to only return orders that meet certain criteria.
+  """
   input OrderFilter {
     field: OrderField
     kind: FilterKind
     value: FilterValue
   }
 
+  """
+  A sort ordering for orders. Can be used in queries to control the order in which results are returned.
+  """
   input OrderSort {
     field: OrderField
     direction: SortDirection
   }
 
   type Query {
+    """
+    Returns the order with the specified hash, or null if no order is found with that hash.
+    """
     order(hash: Hash!): Order
+    """
+    Returns an array of orders that satisfy certain criteria.
+    """
     orders(
+      """
+      Determines the order of the results. If more than one sort option is provided, results we be sorted by the
+      first option first, then by any subsequent options. By default, orders are sorted by hash in ascending order.
+      """
       sort: [OrderSort!] = [{ field: hash, direction: ASC }]
+      """
+      A set of filters. Only the orders that match all filters will be included in the results. By default no
+      filters are used.
+      """
       filters: [OrderFilter!] = []
+      """
+      The maximum number of orders to be included in the results. Defaults to 20.
+      """
       limit: Int = 20
     ): [Order!]!
   }
