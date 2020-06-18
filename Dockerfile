@@ -20,4 +20,4 @@ COPY . .
 RUN yarn build
 
 EXPOSE 4000
-CMD [ "node", "lib/src/index.js" ]
+CMD [ "node", "lib/index.js" ]
