@@ -20,8 +20,7 @@ const typeDefs = gql`
   scalar Bytes
 
   """
-  A signed 0x order according to the protocol specification at
-  https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.
+  A signed 0x order according to the [protocol specification](https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.)
   """
   type Order {
     chainId: Int!
@@ -167,7 +166,7 @@ const typeDefs = gql`
   }
 
   """
-  A signed 0x order according to the protocol specification at https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format.
+  A signed 0x order according to the [protocol specification](https://github.com/0xProject/0x-protocol-specification/blob/master/v3/v3-specification.md#order-message-format).
   """
   input NewOrder {
     chainId: Int!
@@ -232,7 +231,7 @@ const typeDefs = gql`
 
   """
   A set of all possible codes included in RejectedOrderResult. Note that more codes will be added
-  to the final spec. See https://godoc.org/github.com/0xProject/0x-mesh/zeroex/ordervalidator#pkg-variables
+  to the final spec. See the [current Mesh docs](https://godoc.org/github.com/0xProject/0x-mesh/zeroex/ordervalidator#pkg-variables)
   for a list of all codes currently in use.
   """
   enum RejectedOrderCode {
