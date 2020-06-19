@@ -50,7 +50,7 @@ export const typeDefs = gql`
   }
 
   """
-  A signed 0x order along with some additional metaddata about an order which is not part of the 0x protocol specification.
+  A signed 0x order along with some additional metaddata about the order which is not part of the 0x protocol specification.
   """
   type OrderWithMetadata {
     chainId: Int!
@@ -230,7 +230,15 @@ export const typeDefs = gql`
   The results of the addOrders mutation. Includes which orders were accepted and which orders where rejected.
   """
   type AddOrdersResults {
+    """
+    The set of orders that were accepted. Accepted orders will be watched and order events will be emitted if
+    their status changes.
+    """
     accepted: [AcceptedOrderResult!]!
+    """
+    The set of orders that were rejected, including the reason they were rejected. Rejected orders will not be
+    watched.
+    """
     rejected: [RejectedOrderResult!]!
   }
 
@@ -250,7 +258,7 @@ export const typeDefs = gql`
     """
     The hash of the order. May be null if the hash could not be computed.
     """
-    hash: Hash!
+    hash: Hash
     """
     The order that was rejected.
     """
@@ -280,7 +288,7 @@ export const typeDefs = gql`
 
   type Mutation {
     """
-    Used to add one or more new orders to Mesh.
+    Adds one or more orders to Mesh.
     """
     addOrders(orders: [NewOrder!]!, pinned: Boolean = true): AddOrdersResults!
   }
@@ -292,7 +300,7 @@ export const typeDefs = gql`
     order: OrderWithMetadata!
     """
     A way of classifying the effect that the order event had on the order. You can
-    think of this as different "types" of order events.
+    think of different end states as different "types" of order events.
     """
     endState: OrderEndState!
     """
@@ -356,18 +364,48 @@ export const typeDefs = gql`
     STOPPED_WATCHING
   }
 
+  """
+  An on-chain contract event.
+  """
   type ContractEvent {
+    """
+    The hash of the block where the event was generated.
+    """
     blockHash: Hash!
+    """
+    The hash of the transaction where the event was generated.
+    """
     txHash: Hash!
+    """
+    The index of the transaction where the event was generated.
+    """
     txIndex: Int!
+    """
+    The index of the event log.
+    """
     logIndex: Int!
+    """
+    True when this was an event that was removed due to a block-reorg. False otherwise.
+    """
     isRemoved: Boolean!
+    """
+    The address of the contract that generated the event.
+    """
     address: Address!
+    """
+    The kind of event (e.g. "ERC20TransferEvent").
+    """
     kind: String!
+    """
+    The parameters for the event. The parameters are different for each event kind.
+    """
     parameters: Object!
   }
 
   type Subscription {
+    """
+    Subscribe to all order events. Events are emitted whenever the status of a watched order changes.
+    """
     orderEvents: [OrderEvent!]!
   }
 `;
