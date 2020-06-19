@@ -1,4 +1,4 @@
-import { ApolloServer } from "apollo-server";
+import { ApolloServer, PubSub } from "apollo-server";
 import { mockOrders } from "./mock_orders";
 import {
   OrderArgs,
@@ -17,6 +17,7 @@ import {
 } from "./types";
 import { typeDefs } from "./schema";
 import * as R from "ramda";
+import { mockOrderEvents } from "./mock_order_events";
 
 function orderResolver(_: any, args: OrderArgs): OrderWithMetadata | undefined {
   return R.find(R.propEq("hash", args.hash), mockOrders);
@@ -120,6 +121,13 @@ function addOrdersResolver(_: any, args: AddOrdersArgs): AddOrdersResults {
   };
 }
 
+export const pubsub = new PubSub();
+
+// Send mock order events every second.
+setInterval(() => {
+  pubsub.publish("orderEvents", { orderEvents: mockOrderEvents });
+}, 1000);
+
 const resolvers = {
   Query: {
     order: orderResolver,
@@ -128,6 +136,11 @@ const resolvers = {
   },
   Mutation: {
     addOrders: addOrdersResolver,
+  },
+  Subscription: {
+    orderEvents: {
+      subscribe: () => pubsub.asyncIterator("orderEvents"),
+    },
   },
 };
 

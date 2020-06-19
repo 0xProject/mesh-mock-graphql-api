@@ -128,3 +128,33 @@ export enum RejectedOrderCode {
   InvalidTakerAssetAmount = "INVALID_TAKER_ASSET_AMOUNT",
   // Note(albrow): Not all codes are listed here.
 }
+
+export interface OrderEvent {
+  order: OrderWithMetadata;
+  endState: OrderEndState;
+  timestamp: string;
+  contractEvents: ContractEvent[];
+}
+
+export enum OrderEndState {
+  ADDED = "ADDED",
+  FILLED = "FILLED",
+  FULLY_FILLED = "FULLY_FILLED",
+  CANCELLED = "CANCELLED",
+  EXPIRED = "EXPIRED",
+  UNEXPIRED = "UNEXPIRED",
+  UNFUNDED = "UNFUNDED",
+  FILLABILITY_INCREASED = "FILLABILITY_INCREASED",
+  STOPPED_WATCHING = "STOPPED_WATCHING",
+}
+
+export interface ContractEvent {
+  blockHash: string;
+  txHash: string;
+  txIndex: number;
+  logIndex: number;
+  isRemoved: boolean;
+  address: string;
+  kind: string;
+  parameters: any;
+}
